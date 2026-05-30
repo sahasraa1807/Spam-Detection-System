@@ -7,6 +7,7 @@ function App() {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState("message");
+  const [darkMode, setDarkMode] = useState(false);
 
   const handlePredict = async () => {
     if (!text) return;
@@ -34,31 +35,62 @@ function App() {
   };
 
   const getBg = () => {
-    if (result === "ham") return "bg-green-100";
-    if (result === "spam") return "bg-red-100";
-    if (result === "smishing") return "bg-orange-100";
-    return "bg-gray-100";
+    if (result === "ham") return "bg-[#81912F]/25 backdrop-blur-md border border-white/30";
+    if (result === "spam") return "bg-red-400/20 backdrop-blur-md border border-white/30";
+    if (result === "smishing") return "bg-orange-400/20 backdrop-blur-md border border-white/30";
+    return "bg-white/20 backdrop-blur-md border border-white/30";
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 bg-gradient-to-br from-neutral-800 via-rose-400 to-cyan-600">
+    
+
+
+    <div className={`min-h-screen flex items-center justify-center px-4 transition-all duration-500 ${ darkMode
+      ? "bg-gradient-to-br from-gray-900 via-gray-800 to-black"
+      : "bg-gradient-to-br from-blue-500 via-pink-300 to-cyan-600"
+      }`} >
+
+    <div className="absolute top-4 right-4">
+      <button onClick={() => setDarkMode(!darkMode)} className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
+      darkMode
+        ? "bg-yellow-400 text-black hover:bg-yellow-300"
+        : "bg-gray-800 text-white hover:bg-gray-700"
+        }`} >
+        {darkMode ? "☀️ Light" : "🌙 Dark"} </button>
+    </div>
+
+
+     <div className={`w-full max-w-lg backdrop-blur-xl border rounded-3xl shadow-2xl p-6 sm:p-8 text-center transition-all duration-500 ${
+    darkMode
+      ? "bg-gray-900/40 border-gray-600"
+      : "bg-white/20 border-white/20"
+    }`} >
      
-      <div className="w-full max-w-md bg-[#FAF1E6] rounded-2xl shadow-3xl p-6 sm:p-8 text-center mx-auto">
+     <div className={`w-full max-w-md rounded-2xl shadow-3xl p-6 sm:p-8 text-center mx-auto transition-all duration-500 ${
+    darkMode
+      ? "bg-gray-800/70 text-white"
+      : "bg-[#FAF1E6]/35 text-black" }`} >
         
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+        <h1 className={`text-3xl font-bold mb-2 ${
+        darkMode ? "text-white" : "text-black" }`} >
           📩 Spam Detector
         </h1>
-        <p className="text-gray-500 mb-4 text-sm">
-          Analyze messages & emails instantly
-        </p>
 
+
+       <p className={`font-semibold text-sm mb-4 ${
+        darkMode ? "text-gray-300" : "text-gray-700"
+        }`} >
+        Analyze messages & emails instantly
+        </p>
        
-        <div className="flex mb-4 bg-gray-100 rounded-xl overflow-hidden">
+        <div className="flex mb-4 bg-gray-100  rounded-xl overflow-hidden ">
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full mb-4 p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 mt-5 mb-4"
-          >
+             className={`w-full p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+               darkMode ? "bg-gray-700 text-white" : "bg-white text-black"
+             }`}
+            >
             <option value="message">Message</option>
             <option value="email">Email</option>
           </select>
@@ -66,7 +98,9 @@ function App() {
 
       
         <textarea
-          className="w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-sm sm:text-base transition mt-4"
+          className={`w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-sm sm:text-base transition mt-4 ${
+            darkMode ? "bg-gray-700 text-white" : "bg-white text-black"
+          }`}
           rows="4"
           placeholder={
             type === "message"
@@ -87,16 +121,27 @@ function App() {
 
         
         {result && (
+          <div className="mt-3 border border-gray-300 rounded-xl p-2"> 
           <div
-            className={`mt-6 p-4 rounded-xl text-base sm:text-lg font-semibold transition-all duration-300 ${getBg()} ${getColor()}`}
+            className={`p-4 rounded-xl font-semibold transition-all duration-300 ${getBg()} ${getColor()}`}
           >
             {result === "ham" && "✅ Safe Message"}
             {result === "spam" && "❌ Spam Detected"}
             {result === "smishing" && "⚠️ Fraud Alert"}
             {result === "Error" && "⚠️ Something went wrong"}
           </div>
+          </div>
         )}
+        <button onClick={() => {
+        setText("");
+        setResult("");
+        setType("message");
+        }} className="mt-3 w-full py-3 rounded-xl font-medium bg-gray-500 text-white hover:bg-gray-600 transition-all" >
+        Reset
+        </button>
       </div>
+
+    </div>
     </div>
   );
 }
