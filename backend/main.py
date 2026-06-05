@@ -71,5 +71,5 @@ if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=PORT, reload=True)
 
 # -- EXPORT ROUTES (Issue #23) ------------------------------------------------
-from export import router as export_router
+from backend.export import router as export_router
 app.include_router(export_router)
