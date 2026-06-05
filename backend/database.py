@@ -12,9 +12,17 @@ def get_connection():
 
 
 def init_db():
-    """Create the emails table if it doesn't exist."""
-    conn = get_connection()
+    """Create the database and emails table if they don't exist."""
+    # Connect to MySQL server without specifying the database
+    conn = mysql.connector.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+    )
     cursor = conn.cursor()
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
+    cursor.execute(f"USE {DB_NAME}")
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS emails (
             email_id      INT AUTO_INCREMENT PRIMARY KEY,
