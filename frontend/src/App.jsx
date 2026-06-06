@@ -5,6 +5,7 @@ import "./App.css";
 function App() {
   const [text, setText] = useState("");
   const [result, setResult] = useState("");
+  const [suggestion, setSuggestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState("message");
   const [darkMode, setDarkMode] = useState(false);
@@ -14,12 +15,14 @@ function App() {
 
     try {
       setLoading(true);
-      const res = await axios.post(import.meta.env.VITE_API_URI, {
+      const res = await axios.post(import.meta.env.VITE_API_URL, {
         text: text,
         type: type,
       });
+      console.log(res.data);
 
       setResult(res.data.prediction);
+      setSuggestion(res.data.suggestion);
     } catch (error) {
       setResult("Error");
     } finally {
@@ -130,6 +133,15 @@ function App() {
             {result === "smishing" && "⚠️ Fraud Alert"}
             {result === "Error" && "⚠️ Something went wrong"}
           </div>
+          </div>
+        )}
+        {suggestion && (
+          <div className="mt-4 p-4 rounded-lg bg-blue-100">
+            <h3 className="font-bold text-lg">
+              🤖 AI Suggestion
+            </h3>
+
+            <p>{suggestion}</p>
           </div>
         )}
         <button onClick={() => {

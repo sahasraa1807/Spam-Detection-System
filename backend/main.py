@@ -13,7 +13,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     FRONTEND_URL,
-    os.getenv("FRONTEND_DEV_URL", "http://localhost:3000"),
+    os.getenv("FRONTEND_DEV_URL", "http://localhost:8000"),
     ],
     allow_credentials=True,
     allow_methods=["*"],
