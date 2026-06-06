@@ -5,11 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
-COPY server.js .
-COPY routes/ ./routes/
-COPY middleware/ ./middleware/
-COPY models/ ./models/
-COPY controllers/ ./controllers/
+COPY . .
 
 EXPOSE 3000
 

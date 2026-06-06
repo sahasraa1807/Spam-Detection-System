@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../utils/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
 
+
 const Register = () => {
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
@@ -23,9 +24,12 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await api.post('/api/auth/register', form);
+      await api.post(
+  `${import.meta.env.VITE_API_URI}/api/auth/register`,
+  form
+);
       setSuccess('Account created! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 1500);
+      setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -66,7 +70,7 @@ const Register = () => {
 
         <p style={styles.switchText}>
           Already have an account?{' '}
-          <Link to="/login" style={styles.link}>Login here</Link>
+          <Link to="/" style={styles.link}>Login here</Link>
         </p>
       </div>
     </div>

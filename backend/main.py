@@ -3,9 +3,9 @@ import joblib
 from fastapi import FastAPI, HTTPException, APIRouter
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-
-# import environment config
+from backend.xai_service import XAIService
 from backend.config import FRONTEND_URL, BASE_URL, PORT
+xai_service = XAIService()
 
 # Load your models
 # Ensure these files are in the root directory
@@ -71,5 +71,5 @@ if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=PORT, reload=True)
 
 # -- EXPORT ROUTES (Issue #23) ------------------------------------------------
-from export import router as export_router
+from backend.export import router as export_router
 app.include_router(export_router)
