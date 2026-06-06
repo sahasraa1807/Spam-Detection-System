@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-ARG VITE_API_URI=/predict
+ARG VITE_API_URI
 ENV VITE_API_URI=$VITE_API_URI
 
 COPY package*.json ./

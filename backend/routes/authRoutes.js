@@ -15,8 +15,8 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+router.post('/', loginValidation, login);
 router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
 router.get('/me', protect, getMe);
 
 module.exports = router;

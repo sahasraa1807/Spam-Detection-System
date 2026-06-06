@@ -21,11 +21,11 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const res = await api.post('/api/auth/login', form);
+      const res = await api.post(`${import.meta.env.VITE_API_URI}/api/auth`, form);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       login(res.data.user);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
