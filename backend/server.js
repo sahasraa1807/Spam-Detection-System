@@ -54,6 +54,35 @@ app.post("/predict", protect, async (req, res) => {
   }
 });
 
+// Protected: record user feedback on a prediction (forwarded to the ML API)
+const ML_API_BASE = process.env.API.replace(/\/predict$/, "");
+
+app.post("/feedback", protect, async (req, res) => {
+  try {
+    const { text, predicted_label, correct_label } = req.body;
+
+    if (!text || !correct_label) {
+      return res
+        .status(400)
+        .json({ error: "text and correct_label are required" });
+    }
+
+    const response = await axios.post(`${ML_API_BASE}/feedback`, {
+      text,
+      predicted_label,
+      correct_label,
+    });
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    if (error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
+    console.error(error.message);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

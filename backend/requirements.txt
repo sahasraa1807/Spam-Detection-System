@@ -6,3 +6,4 @@ fastapi
 uvicorn
 mysql-connector-python
 fpdf2
+pytest

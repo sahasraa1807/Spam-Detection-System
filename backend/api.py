@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import csv
 import joblib
 import os
 from dotenv import load_dotenv
@@ -17,6 +18,9 @@ if not MODEL_PATH or not VECTORIZER_PATH or not LABEL_ENCODER_PATH:
 model = joblib.load(MODEL_PATH)
 vectorizer = joblib.load(VECTORIZER_PATH)
 label_encoder = joblib.load(LABEL_ENCODER_PATH)
+
+FEEDBACK_FILE = "feedback_store.csv"
+FEEDBACK_LABELS = set(label_encoder.classes_)
 
 
 @app.route("/")
@@ -52,6 +56,28 @@ def predict():
             from datetime import datetime
             f.write(f"{datetime.now()} - ERROR: {str(e)}\n")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    data = request.get_json(silent=True) or {}
+
+    text = str(data.get("text", "")).strip()
+    predicted_label = str(data.get("predicted_label", "")).strip()
+    correct_label = str(data.get("correct_label", "")).strip()
+
+    if not text or correct_label not in FEEDBACK_LABELS:
+        return jsonify({"error": "Invalid feedback data"}), 400
+
+    file_exists = os.path.isfile(FEEDBACK_FILE)
+    with open(FEEDBACK_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["text", "predicted_label", "correct_label", "submitted_at"])
+        from datetime import datetime, timezone
+        writer.writerow([text, predicted_label, correct_label, datetime.now(timezone.utc).isoformat()])
+
+    return jsonify({"message": "Feedback recorded. Thank you!"}), 201
 
 
 if __name__ == "__main__":

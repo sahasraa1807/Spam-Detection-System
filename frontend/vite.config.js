@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3000',
       '/predict': 'http://localhost:3000',
+      '/feedback': 'http://localhost:3000',
     },
   },
 })

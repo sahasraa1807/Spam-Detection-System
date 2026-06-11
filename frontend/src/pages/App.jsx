@@ -7,6 +7,7 @@ import api from "../utils/axiosInstance";
 import "../App.css";
 import { useNavigate } from "react-router-dom";
 import FeatureImportance from "../components/FeatureImportance";
+import FeedbackWidget from "../components/FeedbackWidget";
 
 function App() {
   const [text, setText] = useState("");
@@ -163,6 +164,15 @@ const logout = () => {
                 />
               </div>
             </div>
+          )}
+
+          {result && result !== "Error" && (
+            <FeedbackWidget
+              key={`${text}|${result}|${confidence}`}
+              text={text}
+              predictedLabel={result}
+              darkMode={darkMode}
+            />
           )}
 
           <button

@@ -280,6 +280,58 @@ email_id, subject, sender, is_spam, timestamp
 
 ---
 
+## 🔁 User Feedback Loop
+
+After every prediction, the web app asks **"Was this prediction correct?"**:
+
+* ✅ **Yes** — records the prediction as confirmed correct
+* ❌ **No** — shows a dropdown to pick the correct label (`ham`, `spam`, `smishing`), then submits the correction
+
+### How it flows
+
+```
+React Widget → POST /feedback (Node backend) → POST /feedback (Flask ML API) → feedback_store.csv
+```
+
+### `POST /feedback`
+
+Available on both the Node backend (`/feedback`, requires authentication) and the Flask ML API (`/feedback`).
+
+**Request body:**
+```json
+{
+  "text": "Congratulations! You won a free prize, click here",
+  "predicted_label": "ham",
+  "correct_label": "spam"
+}
+```
+
+**Responses:**
+* `201` — `{"message": "Feedback recorded. Thank you!"}`
+* `400` — `{"error": "Invalid feedback data"}` if `text` is empty or `correct_label` is not one of `ham`, `spam`, `smishing`
+
+Feedback is appended to `backend/feedback_store.csv` (gitignored) with columns:
+
+| Column | Description |
+|--------|-------------|
+| `text` | The original input text |
+| `predicted_label` | What the model predicted |
+| `correct_label` | What the user said it should be |
+| `submitted_at` | UTC timestamp |
+
+### Retraining the model
+
+Once enough feedback has accumulated, run:
+
+```bash
+cd backend
+python retrain.py
+```
+
+This merges `feedback_store.csv` with the original training dataset (`DATASET_PATH`, default `dataset.csv`), retrains the TF-IDF vectorizer, LinearSVC model and label encoder, and overwrites `linear_svm_model.pkl`, `tfidf_vectorizer.pkl` and `label_encoder.pkl`.
+
+---
+
 ## 🔐 Features
 
 * ✅ Spam / Smishing Detection
