@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import csv
 import joblib
 import os
+import re
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,6 +29,30 @@ url_vectorizer = joblib.load(URL_VECTORIZER_PATH)
 
 # url_detector.pkl predicts numeric classes with no bundled label encoder
 URL_LABELS = {0: "malicious", 1: "safe"}
+
+# Heuristic checks to catch obviously malicious URL patterns that the
+# model is too biased toward "safe" to flag on its own.
+SUSPICIOUS_TLDS = {
+    "tk", "ml", "ga", "cf", "gq", "xyz", "top", "work", "click", "loan", "men", "review",
+}
+IPV4_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+
+
+def heuristic_url_is_malicious(url):
+    candidate = url if "://" in url else f"http://{url}"
+    host = urlparse(candidate).hostname or ""
+
+    if "@" in url:
+        return True
+    if IPV4_RE.match(host):
+        return True
+    if host.startswith("xn--") or ".xn--" in host:
+        return True
+    if host.count("-") >= 3:
+        return True
+    tld = host.rsplit(".", 1)[-1] if "." in host else ""
+    return tld in SUSPICIOUS_TLDS
+
 
 FEEDBACK_FILE = "feedback_store.csv"
 FEEDBACK_LABELS = set(label_encoder.classes_)
@@ -54,6 +80,8 @@ def predict():
             text_vector = url_vectorizer.transform([text])
             prediction = url_model.predict(text_vector)
             final_output = URL_LABELS.get(int(prediction[0]), "unknown")
+            if final_output == "safe" and heuristic_url_is_malicious(text):
+                final_output = "malicious"
         else:
             text_vector = vectorizer.transform([text])
             prediction = model.predict(text_vector)
