@@ -50,12 +50,18 @@ def check_domain_age(domain: str) -> Tuple[Optional[int], Optional[str]]:
         if isinstance(creation_date, list):
             creation_date = creation_date[0]
         
-        age_days = (datetime.now() - creation_date).days
+        # Handle timezone-aware datetime
+        now = datetime.now()
+        if creation_date.tzinfo is not None:
+            # If creation_date has timezone, make now timezone-aware
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+        
+        age_days = (now - creation_date).days
         return age_days, creation_date.strftime("%Y-%m-%d")
         
     except Exception as e:
         return None, f"WHOIS lookup failed: {str(e)}"
-
 def check_blacklist(domain: str) -> Dict[str, bool]:
     """
     Check if domain is blacklisted on DNSBL providers.
