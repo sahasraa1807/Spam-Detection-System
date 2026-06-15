@@ -47,7 +47,7 @@ const THEMES = {
 };
 
 function SpamDetector() {
->>>>>>> 50211f6 (feat: add multi-theme customization with light/dark mode support):frontend/src/App.jsx
+
   const [text, setText] = useState("");
   const [result, setResult] = useState("");
   const [confidence, setConfidence] = useState(null);
