@@ -6,7 +6,7 @@ import re
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 from domain_checker import analyze_text
-
+from pathlib import Path
 load_dotenv()
 
 app = Flask(__name__)
@@ -21,13 +21,16 @@ if not MODEL_PATH or not VECTORIZER_PATH or not LABEL_ENCODER_PATH:
 model = joblib.load(MODEL_PATH)
 vectorizer = joblib.load(VECTORIZER_PATH)
 label_encoder = joblib.load(LABEL_ENCODER_PATH)
+BASE_DIR = Path(__file__).resolve().parent
+URL_MODEL_PATH = os.getenv(
+    "URL_MODEL_PATH",
+    str(BASE_DIR / "url_detector.pkl")
+)
 
-URL_MODEL_PATH = os.getenv("URL_MODEL_PATH", "url_detector.pkl")
-URL_VECTORIZER_PATH = os.getenv("URL_VECTORIZER_PATH", "url_vectorizer.pkl")
-
-url_model = joblib.load(URL_MODEL_PATH)
-url_vectorizer = joblib.load(URL_VECTORIZER_PATH)
-
+URL_VECTORIZER_PATH = os.getenv(
+    "URL_VECTORIZER_PATH",
+    str(BASE_DIR / "url_vectorizer.pkl")
+)
 # url_detector.pkl predicts numeric classes with no bundled label encoder
 URL_LABELS = {0: "malicious", 1: "safe"}
 
