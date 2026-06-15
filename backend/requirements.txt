@@ -11,3 +11,4 @@ dnspython>=2.4.0
 pytest
 shap
 lime
+flask-cors
