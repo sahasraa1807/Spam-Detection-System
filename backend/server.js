@@ -48,7 +48,7 @@ app.post("/predict", protect, async (req, res) => {
     }
 
     // Check 4: validate type is one of the accepted values
-    const allowedTypes = ["sms", "email", "url"];   // adjust to your ML model's supported types
+    const allowedTypes = ["sms", "email", "url", "message"];
     if (!allowedTypes.includes(type.toLowerCase())) {
       return res.status(400).json({
         error: `Invalid type. Allowed values are: ${allowedTypes.join(", ")}.`,
