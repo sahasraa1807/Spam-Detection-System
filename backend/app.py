@@ -5,11 +5,32 @@ import re
 from collections import Counter
 from datetime import datetime
 from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
 app=Flask(__name__)
 
+# ─── RATE LIMITER ────────────────────────────────────────────────
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["10 per minute"],
+    storage_uri="memory://",
+    strategy="fixed-window",
+)
+
+# ─── RATE LIMIT ERROR HANDLER ──────────────────────────────────
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "rate_limit_exceeded",
+        "message": "Too many requests. Limit is 10 per minute. Please try again in 60 seconds.",
+        "retry_after": 60
+    }), 429 
+
+# ─── LOAD MODELS ────────────────────────────────────────────────
 MODEL_PATH=os.getenv("MODEL_PATH")
 VECTORIZER_PATH=os.getenv("VECTORIZER_PATH")
 LABEL_ENCODER_PATH = os.getenv("LABEL_ENCODER_PATH")
@@ -60,6 +81,7 @@ def health_check():
 
 # ─── PREDICT ENDPOINT ────────────────────────────────────────────
 @app.route("/predict", methods=["POST"])
+@limiter.limit("10 per minute")
 def predict():
     try:
         data = request.get_json()
