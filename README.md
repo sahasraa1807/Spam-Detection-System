@@ -1,4 +1,5 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Docker Build](https://github.com/Userunknown84/Spam-Detection-System/actions/workflows/docker.yml/badge.svg)
 
 # 🚀 Spam Detection System
 
@@ -130,6 +131,15 @@ if __name__ == "__main__":
 npm install express axios cors
 ```
 
+## Mongo Db Atlas Backend
+.env
+
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/spamdetection?retryWrites=true&w=majority
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+JWT_EXPIRES_IN=7d
+
+
+
 ### ⚙️ Server Code
 
 ```javascript
@@ -233,7 +243,7 @@ export default function App() {
 ```
 ---
 
-## 🗄️ Email Classification Database
+## 🗄️ Email Classification Database (Flask)
 
 A MySQL-based system to store and manage classified email records.
 
@@ -280,6 +290,58 @@ email_id, subject, sender, is_spam, timestamp
 
 ---
 
+## 🔁 User Feedback Loop
+
+After every prediction, the web app asks **"Was this prediction correct?"**:
+
+* ✅ **Yes** — records the prediction as confirmed correct
+* ❌ **No** — shows a dropdown to pick the correct label (`ham`, `spam`, `smishing`), then submits the correction
+
+### How it flows
+
+```
+React Widget → POST /feedback (Node backend) → POST /feedback (Flask ML API) → feedback_store.csv
+```
+
+### `POST /feedback`
+
+Available on both the Node backend (`/feedback`, requires authentication) and the Flask ML API (`/feedback`).
+
+**Request body:**
+```json
+{
+  "text": "Congratulations! You won a free prize, click here",
+  "predicted_label": "ham",
+  "correct_label": "spam"
+}
+```
+
+**Responses:**
+* `201` — `{"message": "Feedback recorded. Thank you!"}`
+* `400` — `{"error": "Invalid feedback data"}` if `text` is empty or `correct_label` is not one of `ham`, `spam`, `smishing`
+
+Feedback is appended to `backend/feedback_store.csv` (gitignored) with columns:
+
+| Column | Description |
+|--------|-------------|
+| `text` | The original input text |
+| `predicted_label` | What the model predicted |
+| `correct_label` | What the user said it should be |
+| `submitted_at` | UTC timestamp |
+
+### Retraining the model
+
+Once enough feedback has accumulated, run:
+
+```bash
+cd backend
+python retrain.py
+```
+
+This merges `feedback_store.csv` with the original training dataset (`DATASET_PATH`, default `dataset.csv`), retrains the TF-IDF vectorizer, LinearSVC model and label encoder, and overwrites `linear_svm_model.pkl`, `tfidf_vectorizer.pkl` and `label_encoder.pkl`.
+
+---
+
 ## 🔐 Features
 
 * ✅ Spam / Smishing Detection
@@ -287,6 +349,31 @@ email_id, subject, sender, is_spam, timestamp
 * ✅ Real-time Prediction API
 * ✅ Cross-platform (Web + Mobile)
 * ✅ Scalable Architecture
+
+---
+
+## 🎨 Theme Customization System
+
+The frontend now includes a fully customizable theme system that allows users to personalize the application's appearance.
+
+## Features
+Added 5 unique themes:
+Ocean
+Sunset
+Forest
+Purple
+Mono
+
+## Theme selector accessible through the 🎨 Theme button in the top-right corner.
+Full support for Light Mode and Dark Mode across all themes.
+Dynamic adaptation of:
+Background gradients
+Cards and panels
+Buttons and accent colors
+Interactive UI elements
+Theme preferences are maintained throughout the user's active session.
+Seamless theme switching without affecting application functionality.
+
 
 ---
 
@@ -314,6 +401,8 @@ email_id, subject, sender, is_spam, timestamp
 ---
 
 ## 🐳 Running with Docker
+
+> ✅ All three images (`ml-api`, `node-backend`, `frontend`) are automatically built and the ML API is smoke-tested via [GitHub Actions](.github/workflows/docker.yml) on every push and pull request to `main`, so the Dockerfiles always stay in sync with the latest code.
 
 ### Prerequisites
 - [Docker](https://docs.docker.com/get-docker/) installed

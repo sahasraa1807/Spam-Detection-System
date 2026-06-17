@@ -32,23 +32,72 @@ app.post("/predict", protect, async (req, res) => {
   try {
     const { text, type } = req.body;
 
+    // Check 1: fields must exist
     if (!text || !type) {
       return res.status(400).json({ error: "Text and type are required" });
     }
 
-    if (text.length > 5000) {
+    // Check 2: must be strings
+    if (typeof text !== "string" || typeof type !== "string") {
+      return res.status(400).json({ error: "Text and type must be strings." });
+    }
+
+    // Check 3: must not be empty or only whitespace
+    if (text.trim().length === 0) {
+      return res.status(400).json({ error: "Text must not be empty or whitespace." });
+    }
+
+    // Check 4: validate type is one of the accepted values
+    const allowedTypes = ["sms", "email", "url", "message"];
+    if (!allowedTypes.includes(type.toLowerCase())) {
+      return res.status(400).json({
+        error: `Invalid type. Allowed values are: ${allowedTypes.join(", ")}.`,
+      });
+    }
+
+    // Check 5: validate text length
+     if (text.trim().length > 5000) {
       return res.status(413).json({
-        error: "Text payload exceeds maximum allowed length of 5000 characters",
+        error: "Text payload exceeds maximum allowed length of 5000 characters.",
       });
     }
 
     const response = await axios.post(process.env.API, {
-      text: text,
-      type: type,
+      text: text.trim(),
+      type: type.toLowerCase(),
     });
 
     res.json(response.data);
   } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+// Protected: record user feedback on a prediction (forwarded to the ML API)
+const ML_API_BASE = process.env.API.replace(/\/predict$/, "");
+
+app.post("/feedback", protect, async (req, res) => {
+  try {
+    const { text, predicted_label, correct_label } = req.body;
+
+    if (!text || !correct_label) {
+      return res
+        .status(400)
+        .json({ error: "text and correct_label are required" });
+    }
+
+    const response = await axios.post(`${ML_API_BASE}/feedback`, {
+      text,
+      predicted_label,
+      correct_label,
+    });
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    if (error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
     console.error(error.message);
     res.status(500).json({ error: "Something went wrong" });
   }
