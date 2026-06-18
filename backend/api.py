@@ -154,13 +154,29 @@ def feedback():
 @app.route("/analyze-email-header", methods=["POST"])
 def analyze_email_header():
     try:
-        data = request.get_json(silent=True) or {}
-        headers = data.get("headers", "")
-        if not headers:
+        headers = None
+        if "file" in request.files:
+            file = request.files["file"]
+            if file and file.filename != "":
+                try:
+                    headers = file.read().decode("utf-8")
+                except Exception as e:
+                    return jsonify({"error": f"Failed to read EML file: {str(e)}"}), 400
+            else:
+                return jsonify({"error": "No email headers provided"}), 400
+        else:
+            data = request.get_json(silent=True) or {}
+            headers = data.get("headers", "")
+
+        if not headers or not headers.strip():
             return jsonify({"error": "No email headers provided"}), 400
             
         analysis = analyze_headers(headers)
         return jsonify({
+            "success": True,
+            "trust_level": analysis.get("trust_level", "Suspicious"),
+            "risk_score": analysis.get("risk_score", 0),
+            "findings": analysis.get("findings", []),
             "status": analysis.get("risk_level", "Suspicious"),
             "analysis": analysis
         })

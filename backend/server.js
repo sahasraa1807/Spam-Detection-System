@@ -107,27 +107,46 @@ app.post("/feedback", protect, async (req, res) => {
 });
 
 // Protected: analyze email headers for authenticity (forwarded to ML API)
-app.post("/analyze-email-header", protect, async (req, res) => {
+app.post("/analyze-email-header", protect, upload.single("file"), async (req, res) => {
   try {
-    const { headers } = req.body;
+    if (req.file) {
+      // Check file size (2MB limit)
+      if (req.file.size > 2 * 1024 * 1024) {
+        return res.status(413).json({ error: "File size exceeds limit of 2MB" });
+      }
 
-    if (!headers) {
-      return res.status(400).json({ error: "Email headers are required" });
+      const form = new FormData();
+      form.append("file", req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const response = await axios.post(`${ML_API_BASE}/analyze-email-header`, form, {
+        headers: {
+          ...form.getHeaders(),
+        },
+      });
+      return res.json(response.data);
+    } else {
+      const { headers } = req.body;
+
+      if (!headers) {
+        return res.status(400).json({ error: "Email headers are required" });
+      }
+
+      if (typeof headers !== "string") {
+        return res.status(400).json({ error: "Email headers must be a string." });
+      }
+
+      if (headers.trim().length === 0) {
+        return res.status(400).json({ error: "Email headers must not be empty." });
+      }
+
+      const response = await axios.post(`${ML_API_BASE}/analyze-email-header`, {
+        headers: headers,
+      });
+      return res.json(response.data);
     }
-
-    if (typeof headers !== "string") {
-      return res.status(400).json({ error: "Email headers must be a string." });
-    }
-
-    if (headers.trim().length === 0) {
-      return res.status(400).json({ error: "Email headers must not be empty." });
-    }
-
-    const response = await axios.post(`${ML_API_BASE}/analyze-email-header`, {
-      headers: headers,
-    });
-
-    res.json(response.data);
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
       console.error("Flask ML API is unavailable:", error.message);

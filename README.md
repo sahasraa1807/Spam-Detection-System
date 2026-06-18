@@ -352,6 +352,57 @@ This merges `feedback_store.csv` with the original training dataset (`DATASET_PA
 
 ---
 
+## 🛡️ Email Header Analysis for Sender Verification
+
+Features:
+* **SPF validation**: Verifies if the email sender is authorized by the domain's SPF records.
+* **DKIM validation**: Confirms the email signature matches the sender's public keys.
+* **DMARC validation**: Validates whether alignment passes based on SPF/DKIM verification results.
+* **Return-Path analysis**: Checks for mismatches between the `From` address domain and `Return-Path` domain.
+* **Sender verification**: Identifies display name domain mismatch or domain alignment anomalies.
+
+### Scoring Logic
+* SPF Failure: +30 points
+* DKIM Failure: +30 points
+* DMARC Failure: +30 points
+* Return-Path Mismatch: +20 points
+* Domain Mismatch: +20 points
+
+### Trust Levels
+* `0–20` score: **Trusted**
+* `21–60` score: **Suspicious**
+* `61+` score: **High Risk**
+
+### Endpoint
+
+#### `POST /analyze-email-header`
+Supports both Option A (JSON body) and Option B (`multipart/form-data` with EML file upload).
+
+**Request (Option A - JSON):**
+```json
+{
+  "headers": "From: Alice <alice@example.com>\nReturn-Path: <spammer@evil.com>..."
+}
+```
+
+**Request (Option B - multipart/form-data):**
+Submit files (EML format) under key `file`.
+
+**Response:**
+```json
+{
+  "success": true,
+  "trust_level": "Suspicious",
+  "risk_score": 45,
+  "findings": [
+    "SPF validation failed",
+    "Return-Path mismatch detected"
+  ]
+}
+```
+
+---
+
 ## 📁 Bulk Spam Detection
 
 Features:
