@@ -92,7 +92,11 @@ def heuristic_url_is_malicious(url):
     return tld in SUSPICIOUS_TLDS
 
 
-FEEDBACK_FILE = "feedback_store.csv"
+OUTPUT_DIR = BASE_DIR / "output"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+FEEDBACK_FILE = OUTPUT_DIR / "feedback_store.csv"
+LOG_FILE = OUTPUT_DIR / "api.log"
 FEEDBACK_LABELS = set(label_encoder.classes_)
 
 
@@ -109,7 +113,7 @@ def predict():
         
         input_type = data.get("type", "message")
         if not text:
-            with open("api.log", "a") as f:
+            with open(LOG_FILE, "a") as f:
                 f.write(f"WARNING: No text provided at {__import__('datetime').datetime.now()}\n")
             return jsonify({"error": "No text provided"}), 400
 
@@ -167,7 +171,7 @@ def predict():
 
         # Log prediction
         text_preview = text[:50] + "..." if len(text) > 50 else text
-        with open("api.log", "a") as f:
+        with open(LOG_FILE, "a") as f:
             from datetime import datetime
             f.write(f"{datetime.now()} - Prediction: '{text_preview}' -> {final_output}\n")
 
@@ -182,7 +186,7 @@ def predict():
         })
 
     except Exception as e:
-        with open("api.log", "a") as f:
+        with open(LOG_FILE, "a") as f:
             from datetime import datetime
             f.write(f"{datetime.now()} - ERROR: {str(e)}\n")
         return jsonify({"error": str(e)}), 500
