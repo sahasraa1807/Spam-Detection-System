@@ -7,6 +7,12 @@ const DATE_FORMATS = {
   monthly: "%Y-%m",
 };
 
+// Labels the ML API returns for a clean verdict (text -> "ham", url -> "safe").
+// Everything else ("spam", "smishing", "malicious", "offensive", ...) counts as a threat.
+const CLEAN_LABELS = new Set(["ham", "safe"]);
+
+const pct = (count, total) => (total ? Number(((count / total) * 100).toFixed(2)) : 0);
+
 // GET /analytics/summary
 const getSummary = async (req, res) => {
   try {
@@ -16,24 +22,27 @@ const getSummary = async (req, res) => {
       { $group: { _id: "$prediction", count: { $sum: 1 } } },
     ]);
 
-    const byLabel = counts.reduce((acc, { _id, count }) => {
-      acc[_id] = count;
-      return acc;
-    }, {});
-
-    const spamCount = byLabel.spam || 0;
-    const hamCount = byLabel.ham || 0;
-    const offensiveCount = byLabel.offensive || 0;
     const totalScanned = counts.reduce((sum, { count }) => sum + count, 0);
+    const labelCounts = {};
+    const labelPercentages = {};
+    let cleanCount = 0;
+
+    counts.forEach(({ _id: label, count }) => {
+      labelCounts[label] = count;
+      labelPercentages[label] = pct(count, totalScanned);
+      if (CLEAN_LABELS.has(label)) cleanCount += count;
+    });
+
+    const threatCount = totalScanned - cleanCount;
 
     res.json({
       totalScanned,
-      spamCount,
-      hamCount,
-      offensiveCount,
-      spamPercentage: totalScanned ? Number(((spamCount / totalScanned) * 100).toFixed(2)) : 0,
-      hamPercentage: totalScanned ? Number(((hamCount / totalScanned) * 100).toFixed(2)) : 0,
-      offensivePercentage: totalScanned ? Number(((offensiveCount / totalScanned) * 100).toFixed(2)) : 0,
+      labelCounts,
+      labelPercentages,
+      cleanCount,
+      cleanPercentage: pct(cleanCount, totalScanned),
+      threatCount,
+      threatPercentage: pct(threatCount, totalScanned),
     });
   } catch (err) {
     console.error("Analytics summary error:", err);

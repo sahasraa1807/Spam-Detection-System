@@ -18,21 +18,32 @@ import api from "../utils/axiosInstance";
 
 const API_BASE = import.meta.env.VITE_API_URI || "";
 
+// Known verdict labels the ML API can return (text -> ham/spam/smishing, url -> safe/malicious).
 const LABEL_COLORS = {
-  spam: "#ef4444",
   ham: "#22c55e",
+  safe: "#16a34a",
+  spam: "#ef4444",
+  smishing: "#f97316",
+  malicious: "#dc2626",
   offensive: "#ec4899",
 };
+const FALLBACK_COLORS = ["#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4"];
+const colorForLabel = (label, idx) => LABEL_COLORS[label] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
 
 const TYPE_COLORS = ["#3b82f6", "#f59e0b", "#8b5cf6", "#10b981"];
 
 function pivotTrends(rows) {
   const byDate = new Map();
+  const labels = new Set();
   rows.forEach(({ date, label, count }) => {
     if (!byDate.has(date)) byDate.set(date, { date });
     byDate.get(date)[label] = count;
+    labels.add(label);
   });
-  return Array.from(byDate.values()).sort((a, b) => (a.date > b.date ? 1 : -1));
+  return {
+    data: Array.from(byDate.values()).sort((a, b) => (a.date > b.date ? 1 : -1)),
+    labels: Array.from(labels),
+  };
 }
 
 function pivotBreakdown(rows) {
@@ -49,6 +60,7 @@ export default function Dashboard() {
 
   const [summary, setSummary] = useState(null);
   const [trends, setTrends] = useState([]);
+  const [trendLabels, setTrendLabels] = useState([]);
   const [breakdown, setBreakdown] = useState([]);
   const [range, setRange] = useState("daily");
   const [loading, setLoading] = useState(false);
@@ -64,7 +76,9 @@ export default function Dashboard() {
         api.get(`${API_BASE}/analytics/breakdown`),
       ]);
       setSummary(summaryRes.data);
-      setTrends(pivotTrends(trendsRes.data));
+      const pivoted = pivotTrends(trendsRes.data);
+      setTrends(pivoted.data);
+      setTrendLabels(pivoted.labels);
       setBreakdown(pivotBreakdown(breakdownRes.data));
     } catch (err) {
       console.error(err);
@@ -87,9 +101,9 @@ export default function Dashboard() {
   const cards = summary
     ? [
         { label: "Total Scanned", value: summary.totalScanned, accent: "text-slate-500" },
-        { label: "Spam %", value: `${summary.spamPercentage}%`, accent: "text-red-500" },
-        { label: "Ham %", value: `${summary.hamPercentage}%`, accent: "text-green-500" },
-        { label: "Offensive %", value: `${summary.offensivePercentage}%`, accent: "text-pink-500" },
+        { label: "Threat %", value: `${summary.threatPercentage}%`, accent: "text-red-500" },
+        { label: "Clean %", value: `${summary.cleanPercentage}%`, accent: "text-green-500" },
+        { label: "Threats Detected", value: summary.threatCount, accent: "text-orange-500" },
       ]
     : [];
 
@@ -182,12 +196,12 @@ export default function Dashboard() {
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                {Object.keys(LABEL_COLORS).map((label) => (
+                {trendLabels.map((label, idx) => (
                   <Line
                     key={label}
                     type="monotone"
                     dataKey={label}
-                    stroke={LABEL_COLORS[label]}
+                    stroke={colorForLabel(label, idx)}
                     strokeWidth={2}
                     dot={false}
                     connectNulls
