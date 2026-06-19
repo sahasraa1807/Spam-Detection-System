@@ -79,10 +79,12 @@ SUSPICIOUS_TLDS = {
 }
 IPV4_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
 
-
 def heuristic_url_is_malicious(url):
     candidate = url if "://" in url else f"http://{url}"
     host = urlparse(candidate).hostname or ""
+
+    if not host:
+        return False
 
     if "@" in url:
         return True
