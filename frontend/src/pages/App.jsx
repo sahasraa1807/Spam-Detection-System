@@ -306,6 +306,12 @@ function SpamDetector() {
             >
               Email Scanner
             </button>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="pb-1 px-4 transition-all border-b-2 border-transparent opacity-50 hover:opacity-75"
+            >
+              📊 Dashboard
+            </button>
           </div>
           {activeTab === "detector" ? (
   <>
