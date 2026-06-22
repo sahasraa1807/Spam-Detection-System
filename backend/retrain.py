@@ -20,6 +20,7 @@ Environment variables (all optional, same defaults as api.py):
 
 import csv
 import os
+import pickle
 from collections import Counter
 
 import joblib
@@ -99,8 +100,11 @@ def main():
         print("Not enough samples per class for a held-out test split; "
               "training on all available data.")
 
-    vectorizer = TfidfVectorizer()
+    # Fit TF-IDF vectorizer with max_features=5000 to match model
+    print("\nFitting TfidfVectorizer (max_features=5000)...")
+    vectorizer = TfidfVectorizer(max_features=5000)
     X_train_vec = vectorizer.fit_transform(X_train)
+    print(f"Vocabulary size: {len(vectorizer.vocabulary_)}")
 
     model = LinearSVC()
     model.fit(X_train_vec, y_train)
