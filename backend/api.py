@@ -378,7 +378,11 @@ def analyze_email_header():
             file = request.files["file"]
             if file and file.filename != "":
                 try:
-                    headers = file.read().decode("utf-8")
+                    raw_bytes = file.read()
+                    try:
+                        headers = raw_bytes.decode("utf-8")
+                    except UnicodeDecodeError:
+                        headers = raw_bytes.decode("latin-1", errors="replace")
                 except Exception as e:
                     return jsonify({"error": f"Failed to read EML file: {str(e)}"}), 400
             else:
