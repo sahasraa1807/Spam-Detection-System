@@ -251,14 +251,14 @@ export default function App() {
 ```
 ---
 
-## 🗄️ Email Classification Database (Flask)
+## 🗄️ Email Classification Database (FastAPI)
 
-A MySQL-based system to store and manage classified email records.
+A MySQL-based system to store and manage classified email records (located in `fastapi_backend/`).
 
 ### Database Setup
 
 ```bash
-mysql -u root -p < backend/schema.sql
+mysql -u root -p < fastapi_backend/schema.sql
 ```
 
 ### API Endpoints
