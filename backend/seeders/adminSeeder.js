@@ -14,8 +14,8 @@ const seedAdminUser = async () => {
                 name: 'Admin'
             });
 
-            conso;e.log('Admin user created successfully');
-            cnsole.log(`Email: ${email}`);
+            console.log('Admin user created successfully');
+            console.log(`Email: ${email}`);
             console.log(`Password: ${password}`);
         }
     }catch(error){
