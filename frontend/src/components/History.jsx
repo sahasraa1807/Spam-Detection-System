@@ -29,7 +29,11 @@ const History = () => {
     };
 
     useEffect(() => {
+        setSelectedItems([]);
         fetchHistory();
+        return () => {
+            setSelectedItems([]);
+        };
     }, []);
 
     const handleBulkDelete = async () => {
