@@ -17,6 +17,7 @@ import EmailScannerDashboard from "../components/EmailScannerDashboard";
 import Chatbot from "../components/Chatbot";
 import { redirect } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import RulesManager from "../components/RulesManager";
 
 function SpamDetector() {
   const navigate = useNavigate();
@@ -308,6 +309,16 @@ function SpamDetector() {
               Email Scanner
             </button>
             <button
+              onClick={() => setActiveTab("rules")}
+              className={`pb-1 px-4 transition-all border-b-2 ${
+                activeTab === "rules"
+                  ? "border-current opacity-100"
+                  : "border-transparent opacity-50 hover:opacity-75"
+              }`}
+            >
+              Rules Manager
+            </button>
+            <button
               onClick={() => navigate("/dashboard")}
               className="pb-1 px-4 transition-all border-b-2 border-transparent opacity-50 hover:opacity-75"
             >
@@ -533,6 +544,8 @@ function SpamDetector() {
             <SpamInsightsDashboard />
           ) : activeTab === "scanner" ? (
             <EmailScannerDashboard />
+          ) : activeTab === "rules" ? (
+            <RulesManager />
           ) : (
             <EmailHeaderAnalyzer />
           )}

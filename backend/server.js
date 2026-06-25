@@ -25,6 +25,7 @@ axios.interceptors.request.use(
 const mongoose = require("mongoose");
 
 const History = require("./models/History");
+const Rule = require("./models/Rule");
 
 const multer = require("multer");
 const upload = multer();
@@ -81,18 +82,21 @@ const authRoutes = require("./routes/authRoutes");
 const historyRoutes = require("./routes/historyRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const ruleRoutes = require("./routes/ruleRoutes");
 
 // Versioned routes (v1)
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/history", historyRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/rules", ruleRoutes);
 
 // Keep old routes for backward compatibility
 app.use("/api/auth", authRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/rules", ruleRoutes);
 
 const { protect } = require("./middleware/authMiddleware");
 
@@ -119,8 +123,8 @@ app.get("/health", async (req, res) => {
 app.post("/predict", protect, async (req, res) => {
   try {
     console.log("Reached /predict");
-    const { text, type } = req.body;
-    console.log("Received:", text, type);
+    const { text, type, sender } = req.body;
+    console.log("Received:", text, type, sender);
 
     // Check 1: fields must exist
     if (!text || !type) {
@@ -155,6 +159,59 @@ app.post("/predict", protect, async (req, res) => {
         error:
           "Text payload exceeds maximum allowed length of 5000 characters.",
       });
+    }
+
+    // Check Blacklist & Whitelist rules
+    let checkPattern = sender ? sender.trim().toLowerCase() : "";
+    if (!checkPattern && type.toLowerCase() === "email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(text.trim())) {
+        checkPattern = text.trim().toLowerCase();
+      }
+    }
+
+    if (checkPattern) {
+      const emailParts = checkPattern.split('@');
+      const domain = emailParts.length > 1 ? emailParts[1] : '';
+      const possiblePatterns = [checkPattern];
+      if (domain) {
+        possiblePatterns.push(`@${domain}`);
+        possiblePatterns.push(domain);
+      }
+
+      const rule = await Rule.findOne({
+        user: req.user.id,
+        pattern: { $in: possiblePatterns }
+      });
+
+      if (rule) {
+        const isSpam = rule.type === 'blacklist';
+        const prediction = isSpam ? "spam" : "ham";
+
+        // Save history for rule matches as well (best-effort)
+        try {
+          await History.create({
+            user: req.user.id,
+            query: text,
+            prediction: prediction,
+            type: type,
+            confidence: 1.0,
+          });
+        } catch (historyError) {
+          console.error("Failed to save history for rule match:", historyError.message);
+        }
+
+        console.log(`Rule match found (${rule.type}):`, checkPattern);
+        return res.json({
+          input: text,
+          prediction: prediction,
+          confidence: 1.0,
+          confidence_level: "high",
+          level_color: isSpam ? "red" : "green",
+          level_emoji: isSpam ? "🔴" : "🟢",
+          rule_applied: rule.type
+        });
+      }
     }
 
     console.log("Calling Flask...");
@@ -664,6 +721,79 @@ app.get("/outlook/emails", protect, async (req, res) => {
   }
 });
 
+// Helper: Apply user blacklist/whitelist rules to a list of emails
+async function applyRulesToEmails(userId, emails) {
+  if (!emails || !Array.isArray(emails) || emails.length === 0) {
+    return { emails: emails || [], spamCount: 0, safeCount: 0 };
+  }
+  
+  const rules = await Rule.find({ user: userId });
+  
+  let spamCount = 0;
+  let safeCount = 0;
+  
+  const modifiedEmails = emails.map(email => {
+    const sender = (email.sender || "").trim();
+    if (!sender) {
+      const isSpam = email.prediction && email.prediction.toLowerCase() !== 'ham' && email.prediction.toLowerCase() !== 'safe';
+      if (isSpam) spamCount++;
+      else safeCount++;
+      return email;
+    }
+    
+    // Parse sender (could be "John Doe <john@doe.com>" or just "john@doe.com")
+    let emailAddress = sender;
+    const emailMatch = sender.match(/<([^>]+)>/);
+    if (emailMatch) {
+      emailAddress = emailMatch[1];
+    }
+    emailAddress = emailAddress.toLowerCase().trim();
+    
+    const emailParts = emailAddress.split('@');
+    const domain = emailParts.length > 1 ? emailParts[1] : '';
+    
+    const possiblePatterns = [emailAddress];
+    if (domain) {
+      possiblePatterns.push(`@${domain}`);
+      possiblePatterns.push(domain);
+    }
+    
+    const matchingRule = rules.find(r => possiblePatterns.includes(r.pattern.toLowerCase().trim()));
+    if (matchingRule) {
+      const isSpam = matchingRule.type === 'blacklist';
+      const updatedPrediction = isSpam ? 'spam' : 'ham';
+      
+      if (updatedPrediction === 'spam') {
+        spamCount++;
+      } else {
+        safeCount++;
+      }
+      
+      return {
+        ...email,
+        prediction: updatedPrediction,
+        rule_applied: matchingRule.type
+      };
+    }
+    
+    // If no rule matches, keep original prediction
+    const isSpam = email.prediction && email.prediction.toLowerCase() !== 'ham' && email.prediction.toLowerCase() !== 'safe';
+    if (isSpam) {
+      spamCount++;
+    } else {
+      safeCount++;
+    }
+    
+    return email;
+  });
+  
+  return {
+    emails: modifiedEmails,
+    spamCount,
+    safeCount
+  };
+}
+
 // Protected: Scan connected emails
 app.post("/scan-emails", protect, async (req, res) => {
   try {
@@ -682,7 +812,13 @@ app.post("/scan-emails", protect, async (req, res) => {
         },
       },
     );
-    res.json(response.data);
+    const ruleResults = await applyRulesToEmails(req.user.id, response.data.emails);
+    res.json({
+      ...response.data,
+      emails: ruleResults.emails,
+      spam_count: ruleResults.spamCount,
+      safe_count: ruleResults.safeCount
+    });
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
       console.error("Flask ML API is unavailable:", error.message);
@@ -810,7 +946,13 @@ app.post("/imap/scan-now", protect, async (req, res) => {
       {},
       { headers: { "X-User-Username": req.user.username } },
     );
-    res.json(response.data);
+    const ruleResults = await applyRulesToEmails(req.user.id, response.data.emails);
+    res.json({
+      ...response.data,
+      emails: ruleResults.emails,
+      spam_count: ruleResults.spamCount,
+      safe_count: ruleResults.safeCount
+    });
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
       console.error("Flask ML API is unavailable:", error.message);
@@ -834,7 +976,11 @@ app.get("/imap/scan-results", protect, async (req, res) => {
       params: req.query,
       headers: { "X-User-Username": req.user.username },
     });
-    res.json(response.data);
+    const ruleResults = await applyRulesToEmails(req.user.id, response.data.results);
+    res.json({
+      ...response.data,
+      results: ruleResults.emails
+    });
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
       console.error("Flask ML API is unavailable:", error.message);
@@ -879,4 +1025,6 @@ const gracefulShutdown = async signal => {
 // Listen for termination signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+module.exports = { app, applyRulesToEmails };
  
