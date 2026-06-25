@@ -22,17 +22,33 @@ const app = express();
 
 const Sentry = require("@sentry/node");
 
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV || "development",
-  tracesSampleRate: 1.0,
-});
+// ====== SENTRY SETUP ======
+let sentryEnabled = false;
 
-// Request handler - adds tracing context
-app.use(Sentry.Handlers.requestHandler());
-
-//Tracing handler - creates a trace for every incoming request
-app.use(Sentry.Handlers.tracingHandler());
+if (process.env.SENTRY_DSN && process.env.SENTRY_DSN !== 'https://your-sentry-dsn@o123456.ingest.sentry.io/1234567') {
+    const Sentry = require("@sentry/node");
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || "development",
+        tracesSampleRate: 1.0,
+    });
+    app.use(Sentry.Handlers.requestHandler());
+    app.use(Sentry.Handlers.tracingHandler());
+    sentryEnabled = true;
+    console.log('✅ Sentry initialized');
+    
+    // Make Sentry available globally
+    global.Sentry = Sentry;
+} else {
+    console.log('ℹ️ Sentry disabled (no valid DSN provided)');
+    // Mock Sentry to prevent errors
+    global.Sentry = {
+        captureException: () => {},
+        setUser: () => {},
+        setTags: () => {},
+        setExtra: () => {},
+    };
+}
 
 // Connect to MongoDB WITH RETRY
 const connectWithRetry = async (retries=5, delay=5000) => {
