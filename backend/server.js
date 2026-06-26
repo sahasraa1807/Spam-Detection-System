@@ -1064,6 +1064,9 @@ app.use(errorHandler);
 const PORT = config.port;
 const server = app.listen(PORT, () => {
   displayBanner();
+  const totalTime = Date.now() - SERVER_START_TIME;
+  displayBanner();
+  console.log(`⏱️ Total startup time: ${totalTime}ms`);
 // ====== PREDICTION STATISTICS ======
 app.get('/api/stats', protect, async (req, res) => {
     try {
