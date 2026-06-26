@@ -41,6 +41,8 @@ app = Flask(__name__)
 xai_engine = ExplanationEngine()
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
+BASE_DIR = Path(__file__).resolve().parent
+
 def resolve_path(env_var, default_filename):
     val = os.getenv(env_var)
     if val:
@@ -141,6 +143,28 @@ def predict():
                 f.write(f"WARNING: No text provided at {__import__('datetime').datetime.now()}\n")
             return jsonify({"error": "No text provided"}), 400
 
+        # Translate incoming text to English if it is not in English
+        original_text = text
+        detected_language = "en"
+        translated = False
+        
+        if input_type != "url" and text.strip():
+            try:
+                from langdetect import detect
+                detected_language = detect(text)
+            except Exception:
+                detected_language = "en"
+                
+            if detected_language != "en":
+                try:
+                    from deep_translator import GoogleTranslator
+                    translated_text = GoogleTranslator(source='auto', target='en').translate(text)
+                    if translated_text and translated_text.strip().lower() != text.strip().lower():
+                        text = translated_text
+                        translated = True
+                except Exception:
+                    pass
+
         # Get spam prediction
         text_vector = vectorizer.transform([text])
         prediction = model.predict(text_vector)
@@ -222,12 +246,16 @@ def predict():
 
         # Return response with domain analysis and explanation
         response_data = {
-            "input": text,
+            "input": original_text,
             "result": final_output,
             "prediction": final_output,
             "domain_analysis": domain_analysis,
             "explanation": explanation,
+            "detected_language": detected_language,
+            "translated": translated,
         }
+        if translated:
+            response_data["translated_text"] = text
         if confidence is not None:
             response_data["confidence"] = confidence
 
