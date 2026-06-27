@@ -1260,6 +1260,53 @@ app.get("/imap/scan-results", protect, async (req, res) => {
 });
 });
 
+// ===== SEARCH HISTORY =====
+app.get('/api/history/search',protect, async(req,res) => {
+  try{
+    const{q,type,startDate,endDate} = req.query;
+    const query = { user: req.user.id};
+
+    // Search by message text
+    if(q && q.trim()){
+           query.query = { $regex: q.trim(), $options: 'i' };
+        }
+
+        // Filter by prediction type
+        if (type && type !== 'all') {
+            query.prediction = type;
+        }
+
+        // Filter by date range
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                query.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.createdAt.$lte = new Date(endDate);
+            }
+        }
+
+        const results = await History.find(query)
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        const total = await History.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: results,
+            total,
+            count: results.length
+        });
+    } catch (error) {
+        console.error('Search error:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
 // ========================================
 // START SERVER
 // ========================================
