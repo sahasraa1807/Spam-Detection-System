@@ -1,3 +1,4 @@
+// Force rebuild - trigger CI
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -32,16 +33,16 @@ function SpamDetector() {
   const [type, setType] = useState("message");
   const [copied, setCopied] = useState(false);
   const detectType = (text) => {
-    if(!text || text.trim().length === 0) return 'message';
-    const trimmed = text.trim();
-    if (trimmed.includes('http://') || trimmed.includes('https://')) return 'url';
-    if (trimmed.includes('@') && trimmed.includes('.')) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(trimmed)) return 'email';
-    }
-    if (trimmed.length < 160 && !trimmed.includes('\n')) return 'sms';
-    return 'message';
-  };
+  if (!text || text.trim().length === 0) return 'message';
+  const trimmed = text.trim();
+  if (trimmed.includes('http://') || trimmed.includes('https://')) return 'url';
+  if (trimmed.includes('@') && trimmed.includes('.')) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(trimmed)) return 'email';
+  }
+  if (trimmed.length < 160 && !trimmed.includes('\n')) return 'sms';
+  return 'message';
+};
 
   const [darkMode, setDarkMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -133,6 +134,22 @@ function SpamDetector() {
     >
       {/* Top Controls */}
       <div className="absolute top-4 right-4 flex gap-3 flex-wrap justify-end">
+        <button
+    onClick={() => {
+        // Toggle dark mode - depends on your theme context
+        // If you have setThemeMode function:
+        setThemeMode(isDark ? 'light' : 'dark');
+    }}
+    className="px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-2 shadow-md"
+    style={{
+        background: isDark ? '#fbbf24' : '#1e293b',
+        color: isDark ? '#1e293b' : '#fbbf24',
+        border: 'none',
+        cursor: 'pointer'
+    }}
+>
+    {isDark ? '☀️' : '🌙'}
+</button>
         <InstallAppButton />
 
         <button
@@ -646,14 +663,13 @@ function SpamDetector() {
             <EmailHeaderAnalyzer />
           )}
           <WordCloud darkMode={isDark} />
-        </div>
+                </div>
       </div>
-      </div>
+    </div>
     <Footer />
     <Chatbot />
     </div>
-    
-  );
+    );
 }
 
 export default SpamDetector;
