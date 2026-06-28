@@ -11,6 +11,7 @@ import WordCloud from "../components/WordCloud";
 import FeedbackWidget from "../components/FeedbackWidget";
 import PredictionExplanation from "../components/PredictionExplanation";
 import Login from "./Login.jsx";
+import confetti from 'canvas-confetti';
 import Register from "./Register.jsx";
 import EmailHeaderAnalyzer from "../components/EmailHeaderAnalyzer";
 import BulkSpamDetection from "../components/BulkSpamDetection";
@@ -30,6 +31,10 @@ function SpamDetector() {
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState("message");
+  const [hasCelebrated, setHasCelebrated] = useState(() => {
+    return localStorage.getItem('firstPrediction') === 'true';
+});
+  const [showCelebration, setShowCelebration] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const detectType = (text) => {
@@ -43,15 +48,6 @@ function SpamDetector() {
     if (trimmed.length < 160 && !trimmed.includes('\n')) return 'sms';
     return 'message';
   };
-  if (!text || text.trim().length === 0) return 'message';
-  const trimmed = text.trim();
-  if (trimmed.includes('http://') || trimmed.includes('https://')) return 'url';
-  if (trimmed.includes('@') && trimmed.includes('.')) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(trimmed)) return 'email';
-  }
-  if (trimmed.length < 160 && !trimmed.includes('\n')) return 'sms';
-  return 'message';
 };
 
   const [darkMode, setDarkMode] = useState(false);
@@ -93,6 +89,12 @@ function SpamDetector() {
         text: text,
         type: type,
       });
+    if (!hasCelebrated) {
+    triggerConfetti();
+    setHasCelebrated(true);
+    localStorage.setItem('firstPrediction', 'true');
+    }
+
       setResult(res.data.prediction);
       setConfidence(res.data.confidence ?? null);
     } catch (error) {
@@ -101,6 +103,19 @@ function SpamDetector() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const triggerConfetti = () => {
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    setTimeout(() => {
+        confetti({ particleCount: 50, spread: 50, origin: { y: 0.6, x: 0.3 } });
+    }, 200);
+    setTimeout(() => {
+        confetti({ particleCount: 50, spread: 50, origin: { y: 0.6, x: 0.7 } });
+    }, 400);
+    setTimeout(() => {
+        setShowCelebration(true);
+    }, 500);
   };
 
   const confidencePct =
@@ -674,6 +689,45 @@ Powered by Spam Detection System`;
               <EmailHeaderAnalyzer />
             )}
             <WordCloud darkMode={isDark} />
+            {showCelebration && (
+    <div className="celebration-modal" style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+    }}>
+        <div style={{
+            background: 'white',
+            padding: '40px',
+            borderRadius: '20px',
+            textAlign: 'center',
+            maxWidth: '400px',
+            width: '90%'
+        }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+            <h2 style={{ color: '#7c3aed' }}>First Prediction Complete!</h2>
+            <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
+                You're on your way to becoming a spam detection expert!
+            </p>
+            <button 
+                onClick={() => setShowCelebration(false)} 
+                style={{
+                    padding: '10px 30px',
+                    background: '#7c3aed',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                }}
+            >
+                Continue Learning →
+            </button>
+        </div>
+    </div>
+)}
           </div>
         </div>
       </div>
