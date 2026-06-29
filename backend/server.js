@@ -27,6 +27,7 @@ const logStartupTime= (component, startTime) => {
 // Configure global request interceptor to append the internal secret API key
 axios.interceptors.request.use(
   (config) => {
+    config.timeout = 15000; // 15 seconds timeout
     const internalSecret = process.env.INTERNAL_SECRET || "super-secret-internal-key";
     config.headers["X-Internal-Secret"] = internalSecret;
     return config;
