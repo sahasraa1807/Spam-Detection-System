@@ -466,7 +466,36 @@ const handlePredict = async () => {
                 </button>
 
                 {/* Results Section */}
-                {result && (
+                {/* 🚀 Tailwind Skeleton Loader */}
+                {loading ? (
+                  <div className={`mt-5 rounded-3xl p-5 shadow-lg border w-full animate-pulse text-left ${isDark ? "bg-slate-900/50 border-slate-700" : "bg-white/70 border-slate-200"}`}>
+                    {/* Header Placeholder */}
+                    <div className="flex justify-between items-center mb-5">
+                      <div className={`h-6 w-40 rounded-lg ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                      <div className={`h-8 w-24 rounded-full ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                    </div>
+
+                    {/* Confidence Score Placeholder */}
+                    <div className={`h-4 w-32 rounded mb-3 ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                    <div className={`h-8 w-20 rounded mb-4 ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                    <div className={`w-full rounded-full h-3 mb-6 ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+
+                    {/* Explanation Mock Placeholder */}
+                    <div className={`mt-4 p-5 rounded-3xl border ${isDark ? "bg-slate-800/60 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
+                      <div className="flex justify-between mb-4">
+                        <div className={`h-5 w-48 rounded ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                        <div className={`h-8 w-16 rounded ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 mb-4">
+                        <div className={`h-24 rounded-2xl ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                        <div className={`h-24 rounded-2xl ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                      </div>
+                      <div className={`h-4 w-1/4 rounded mb-3 ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                      <div className={`h-3 w-3/4 rounded mb-2 ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                      <div className={`h-3 w-1/2 rounded ${isDark ? "bg-slate-700" : "bg-slate-200"}`}></div>
+                    </div>
+                  </div>
+                ) : result && (
                   <div
                     className={`mt-5 rounded-3xl p-5 shadow-lg border ${
                       isDark
