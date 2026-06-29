@@ -227,6 +227,7 @@ app.use("/api/rules", ruleRoutes);
 app.use("/api/reports", reportRoutes);
 
 const { protect } = require("./middleware/authMiddleware");
+const { predictLimiter } = require("./middleware/rateLimiter");
 
 // ===== PREDICTION COUNT =====
 app.get('/api/history/count',protect,async (req,res) => {
@@ -258,7 +259,7 @@ app.get("/health", async (req, res) => {
 });
 
 // Protected: only authenticated users can predict
-app.post("/predict", protect, async (req, res) => {
+app.post("/predict", predictLimiter, protect, async (req, res) => {
   try {
     console.log("Reached /predict");
     const { text, type, sender } = req.body;
