@@ -49,6 +49,22 @@ function App() {
     return "message";
   };
 
+  const calculateReadingTime = (text) => {
+    if(!text || text.trim().length === 0) return '0 sec read';
+
+    const wordCount = text.trim().split(/\s+/).length
+    const readingTimeMinutes = wordCount / 200; // Average reading speed: 200 wpm
+
+    if(readingTimeMinutes < 1) {
+      const seconds = Math.round(readingTimeMinutes * 60);
+      return `${seconds} sec read`;
+    } else if(readingTimeMinutes<2){
+      return '1 min read';
+    }else {
+      return `${Math.round(readingTimeMinutes)} min read`;
+    }
+    };
+
   const [darkMode, setDarkMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [theme, setTheme] = useState("ocean");
@@ -535,17 +551,17 @@ function App() {
                     </button>
                   )}
 
-                  <div className="flex justify-end items-center mt-1.5 px-1 text-xs font-medium tracking-wide opacity-70">
-                    {text.length > 5000 ? (
-                      <span className="text-red-500 font-bold">
-                        {text.length.toLocaleString()} / 5000 characters (Limit exceeded)
-                      </span>
-                    ) : (
-                      <span className={text.length > 500 ? "text-orange-500" : ""}>
-                        {text.length.toLocaleString()} characters
-                      </span>
-                    )}
-                  </div>
+                <div className="flex justify-between items-center mt-1.5 px-1 text-xs font-medium tracking-wide opacity-70">
+                  <span>📖 {calculateReadingTime(text)}</span>
+                  {text.length > 5000 ? (
+                     <span className="text-red-500 font-bold">
+                      {text.length.toLocaleString()} / 5000 characters (Limit exceeded)
+                     </span>
+                  ) : (
+                     <span className={text.length > 500 ? "text-orange-500" : ""}>
+                      {text.length.toLocaleString()} characters
+                     </span>
+                  )}
                 </div>
 
                 <button
@@ -853,14 +869,14 @@ Powered by Spam Detection System`;
   </div>
 )}
 
-{/* End of detector tab */}
+
 </> 
 ) : activeTab === "bulk" ? (
   <BulkSpamDetection />
 ) : activeTab === "insights" ? (
   <SpamInsightsDashboard />
 ) : activeTab === "scanner" ? (
-  <EmailScannerDashboard />
+ <EmailScannerDashboard />
 ) : activeTab === "rules" ? (
   <RulesManager />
 ) : activeTab === "history" ? (
@@ -868,53 +884,54 @@ Powered by Spam Detection System`;
 ) : (
   <EmailHeaderAnalyzer />
 )}
+
 <WordCloud darkMode={isDark} />
-            {showCelebration && (
-    <div className="celebration-modal" style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000
+{showCelebration && (
+  <div className="celebration-modal" style={{
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  }}>
+    <div style={{
+      background: 'white',
+      padding: '40px',
+      borderRadius: '20px',
+      textAlign: 'center',
+      maxWidth: '400px',
+      width: '90%'
     }}>
-        <div style={{
-            background: 'white',
-            padding: '40px',
-            borderRadius: '20px',
-            textAlign: 'center',
-            maxWidth: '400px',
-            width: '90%'
-        }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
-            <h2 style={{ color: '#7c3aed' }}>First Prediction Complete!</h2>
-            <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-                You're on your way to becoming a spam detection expert!
-            </p>
-            <button 
-                onClick={() => setShowCelebration(false)} 
-                style={{
-                    padding: '10px 30px',
-                    background: '#7c3aed',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer'
-                }}
-            >
-                Continue Learning →
-            </button>
-        </div>
+      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+      <h2 style={{ color: '#7c3aed' }}>First Prediction Complete!</h2>
+      <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
+        You're on your way to becoming a spam detection expert!
+      </p>
+      <button 
+        onClick={() => setShowCelebration(false)} 
+        style={{
+          padding: '10px 30px',
+          background: '#7c3aed',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer'
+        }}
+      >
+        Continue Learning →
+      </button>
     </div>
+  </div>
 )}
-          </div>
-        </div>
-      </div>
-      <Footer darkMode={isDark} />
-      <Chatbot />
-    </div>
-  );
+</div>  
+</div> 
+</div>  
+<Footer darkMode={isDark} />
+<Chatbot />
+</div>  
+);
 }
   
 export default App;
