@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import api from "../utils/axiosInstance";
@@ -67,6 +68,7 @@ function SpamDetector() {
       });
       setResult(res.data.prediction);
       setConfidence(res.data.confidence ?? null);
+      setErrorInfo(null);
     } catch (error) {
       setResult("Error");
     } finally {
@@ -96,11 +98,7 @@ function SpamDetector() {
     return "bg-slate-500/15 border border-slate-500/35";
   };
 
-  const confidencePct =
-    confidence !== null
-      ? Math.min(confidence * 50 + 50, 100).toFixed(1)
-      : "0.0";
-
+  const confidencePct = confidence !== null ? Math.min(confidence * 50 + 50, 100).toFixed(1) : "0.0";
   const confidenceValue = Number(confidencePct);
 
   const riskLevel =
@@ -116,11 +114,7 @@ function SpamDetector() {
       <div className="absolute top-4 right-4 flex gap-3 flex-wrap justify-end">
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className={`px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-2 shadow-md ${
-            isDark
-              ? "bg-slate-800 text-white hover:bg-slate-700"
-              : "bg-white/35 text-slate-850 hover:bg-white/50"
-          }`}
+          className={`px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-2 shadow-md ${isDark ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-white/35 text-slate-850 hover:bg-white/50"}`}
         >
           ⚙️ Customize Theme
         </button>
@@ -148,22 +142,12 @@ function SpamDetector() {
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div
-            className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-all duration-300 ${
-              isDark
-                ? "bg-slate-900 text-slate-100 border-slate-700"
-                : "bg-white text-slate-900 border-slate-200"
-            }`}
-          >
+          <div className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-all duration-300 ${isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200"}`}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">🎨 Theme Settings</h3>
               <button
                 onClick={() => setShowSettings(false)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  isDark
-                    ? "bg-slate-800 hover:bg-slate-700"
-                    : "bg-slate-100 hover:bg-slate-200"
-                }`}
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${isDark ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-100 hover:bg-slate-200"}`}
               >
                 ✕
               </button>
@@ -183,13 +167,7 @@ function SpamDetector() {
                   <button
                     key={item.mode}
                     onClick={() => setThemeMode(item.mode)}
-                    className={`py-2 px-3 rounded-xl text-sm font-medium transition-all ${
-                      themeMode === item.mode
-                        ? activeTheme.accent
-                        : isDark
-                          ? "bg-slate-800 hover:bg-slate-750 text-slate-300"
-                          : "bg-slate-100 hover:bg-slate-150 text-slate-700"
-                    }`}
+                    className={`py-2 px-3 rounded-xl text-sm font-medium transition-all ${themeMode === item.mode ? activeTheme.accent : isDark ? "bg-slate-800 hover:bg-slate-750 text-slate-300" : "bg-slate-100 hover:bg-slate-150 text-slate-700"}`}
                   >
                     {item.label}
                   </button>
@@ -207,15 +185,7 @@ function SpamDetector() {
                   <button
                     key={key}
                     onClick={() => setColorTheme(key)}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left text-sm font-semibold border transition-all ${
-                      colorTheme === key
-                        ? isDark
-                          ? "border-blue-500 bg-slate-800"
-                          : "border-indigo-500 bg-slate-100"
-                        : isDark
-                          ? "border-slate-800 bg-slate-850 hover:bg-slate-800"
-                          : "border-slate-100 bg-slate-50 hover:bg-slate-100"
-                    }`}
+                    className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left text-sm font-semibold border transition-all ${colorTheme === key ? isDark ? "border-blue-500 bg-slate-800" : "border-indigo-500 bg-slate-100" : isDark ? "border-slate-800 bg-slate-850 hover:bg-slate-800" : "border-slate-100 bg-slate-50 hover:bg-slate-100"}`}
                   >
                     <span>{value.name}</span>
                     <span className={`w-8 h-5 rounded-full ${value.light}`} />
