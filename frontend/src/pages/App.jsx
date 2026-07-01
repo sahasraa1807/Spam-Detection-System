@@ -77,6 +77,38 @@ function App() {
     }
   };
 
+  //Streak tracking
+  const [streak, setStreak] = useState(() => {
+    const lastDate = localStorage.getItem("lastPredictionDate");
+    const streakCount = parseInt(localStorage.getItem("streakCount") || "0", 10);
+    const today = new Date().toDateString();
+
+    if (lastDate === today) return streakCount;
+    if(lastDate){
+      const last = new Date(lastDate);
+      const now = new Date();
+      const diffTime = now - last;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+      if (diffDays === 1) return streakCount + 1;
+      if (diffDays > 1) return 0;
+    }
+    return streakCount;
+  });
+
+  const [newBadgeEarned, setNewBadgeEarned] = useState(false);
+  const [showBadgePopup, setShowBadgePopup] = useState(false);
+
+  //Badge Definitions
+  const Badges = {
+     3: { name: '🔥 Novice Streaker', icon: '🔥', color: 'bg-orange-500', description: '3 day streak' },
+     7: { name: '⚡ Weekly Warrior', icon: '⚡', color: 'bg-blue-500', description: '7 day streak' },
+     14: { name: '🌟 Fortnight Champion', icon: '🌟', color: 'bg-purple-500', description: '14 day streak' },
+     30: { name: '🏆 Monthly Master', icon: '🏆', color: 'bg-yellow-500', description: '30 day streak' },
+     50: { name: '💎 Diamond Streaker', icon: '💎', color: 'bg-cyan-500', description: '50 day streak' },
+     100: { name: '👑 Legendary Streaker', icon: '👑', color: 'bg-red-500', description: '100 day streak' },
+    };
+
   const playHamSound = () => {
     if (!soundEnabled) return;
     try {
@@ -180,6 +212,18 @@ function App() {
       });
     } finally {
       setLoading(false);
+
+      const today = new Date().toDateString();
+      const lastDate = localStorage.getItem('lastPredictionDate');
+      const currentStreak = parseInt(localStorage.getItem('predictionStreak') || '0');
+
+      if (lastDate !== today) {
+      const newStreak = currentStreak + 1;
+      localStorage.setItem('predictionStreak', newStreak.toString());
+      localStorage.setItem('lastPredictionDate', today);
+      setStreak(newStreak);
+      checkNewBadge(newStreak);
+      }
     }
   };
 
@@ -645,6 +689,19 @@ function App() {
                     )}
                   </div>
                 )}
+
+                <div className="mt-6 p-4 rounded-xl border text-left">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold opacity-70">📈 Spam Detection Insights</span>
+                    <div className="flex items-center gap-2">
+                      {getEarnedBadges().map((badge) => (
+                       <span key={badge.day} className="text-lg" title={badge.name}>
+                        {badge.icon}
+                       </span>
+                    ))}
+                    </div>
+                  </div>
+                </div>
 
                 <WordCloud darkMode={isDark} />
               </>
