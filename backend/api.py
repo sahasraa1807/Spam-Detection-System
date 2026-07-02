@@ -25,11 +25,14 @@ try:
     import nltk
     from nltk.corpus import stopwords
     from nltk.tokenize import word_tokenize
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
+    # Do NOT download NLTK corpora at runtime. In restricted / read-only
+    # containers this can crash the app on startup with PermissionError.
+    # Ensure required corpora (punkt, stopwords) are installed during Docker
+    # build and/or via a writable NLTK_DATA location.
     NLTK_AVAILABLE = True
 except ImportError:
     NLTK_AVAILABLE = False
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "email_connectors"))
 from gmail_connector import get_gmail_auth_url, get_gmail_tokens, refresh_gmail_token, fetch_gmail_emails
