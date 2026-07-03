@@ -280,15 +280,31 @@ const dispatchWebhook = async (userId, payload) => {
   try {
     const user = await User.findById(userId);
     if (user && user.webhookUrl) {
-      console.log(`[Webhook] Dispatching threat alert to: ${user.webhookUrl}`);
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(user.webhookUrl);
+      } catch (err) {
+        console.error(`[Webhook Failed] Invalid URL ${user.webhookUrl}:`, err.message);
+        return;
+      }
+
+      // Basic SSRF protection: block localhost, local/private IP ranges
+      const hostname = parsedUrl.hostname;
+      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+      const isPrivateIP = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.)/.test(hostname);
       
-      // Fire and forget (Asynchronous execution via Axios)
+      if (isLocalhost || isPrivateIP) {
+        console.error(`[Webhook Blocked] SSRF Prevention: Cannot dispatch to private/local address ${hostname}`);
+        return;
+      }
+
+      console.log(`[Webhook] Dispatching threat alert to: ${user.webhookUrl}`);
+
       axios.post(user.webhookUrl, {
-        event: 'high_risk_threat_detected',
-        timestamp: new Date().toISOString(),
-        threat_details: payload
+        event: "threat_detected",
+        payload: payload,
+        timestamp: new Date().toISOString()
       }).catch(err => {
-        // Resilience: Catch external server errors so our app doesn't crash
         console.error(`[Webhook Failed] Could not deliver to ${user.webhookUrl}:`, err.message);
       });
     }
