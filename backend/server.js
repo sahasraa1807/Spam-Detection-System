@@ -493,8 +493,6 @@ app.post("/predict", predictLimiter, protect, checkCache, async (req, res) => {
       setCache(req.cacheKey, resultData).catch(err => console.error("Cache Save Error:", err));
     }
 
-    return res.json(resultData);
-
     // ---> NEW: Trigger Webhook if threat is high risk
     const predictionLabel = response.data.prediction ? response.data.prediction.toLowerCase() : '';
     const confidenceScore = response.data.confidence || 0;
@@ -507,9 +505,8 @@ app.post("/predict", predictLimiter, protect, checkCache, async (req, res) => {
         confidence: confidenceScore
       });
     }
-    
 
-    res.json(response.data);
+    return res.json(resultData);
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
