@@ -13,7 +13,8 @@ const compression = require('compression');
 const { v4: uuidv4 } = require('uuid');
 const helmet = require('helmet');
 const axios = require("axios");
-
+// Initialize background jobs
+require('./jobs/archivalCron');
 // ===== STARTUP TIMER =====
 const SERVER_START_TIME = Date.now();
 const startupLogs = [];
@@ -1324,9 +1325,7 @@ app.get('/api/history/search',protect, async(req,res) => {
 //   displayBanner();
 //   console.log(`⏱️ Total startup time: ${totalTime}ms`);
 // });
-// Listen for termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 
 module.exports = { app, applyRulesToEmails };
  
