@@ -837,6 +837,32 @@ app.get("/gmail/emails", protect, async (req, res) => {
         "X-User-Username": req.user.username,
       },
     });
+
+    // Check if the user has a valid refresh token for Gmail
+    if (!userTokens.refresh_token) {
+    return res.status(401).json({
+      error: "Re-authentication required. Please reconnect your Gmail account."
+      });
+    }
+    
+    const response = await axios.get(`${ML_API_BASE}/gmail/emails`, {
+      headers: {
+        "X-User-Username": req.user.username,
+      },
+    });
+    
+    //Check if the user has a valid refresh token for Outlook
+    if (!userTokens.refresh_token) {
+      return res.status(401).json({
+        error: "Re-authentication required. Please reconnect your Outlook account."
+      });
+    }
+    
+    const response = await axios.get(`${ML_API_BASE}/outlook/emails`, {
+      headers: {
+        "X-User-Username": req.user.username,
+      },
+    });
     res.json(response.data);
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
@@ -1055,6 +1081,16 @@ app.post("/scan-emails", protect, async (req, res) => {
       return res
         .status(400)
         .json({ error: "Invalid provider. Must be 'gmail' or 'outlook'." });
+    }
+    
+    //Check if the user has a valid refresh token for the specified provider
+    const userTokens = await getUserTokens(req.user.id, provider);
+    if (!userTokens?.refresh_token) {
+      return res.status(401).json({
+        success: false,
+        error: "Re-authentication required",
+        message: `Please reconnect your ${provider} account.`
+      });
     }
     const response = await axios.post(
       `${ML_API_BASE}/scan-emails`,
