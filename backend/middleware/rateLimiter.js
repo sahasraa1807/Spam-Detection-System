@@ -1,44 +1,45 @@
-const rateLimit = require("express-rate-limit");
+const rateLimit = require('express-rate-limit');
 
+// 1. Strict Auth Limiters (Your Code)
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
+  windowMs: 15 * 60 * 1000,
   max: 5,
-  message: {
-    success: false,
-    message: "Too many login attempts. Please try again after 5 minutes."
-  }
+  message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const registerLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    message: "Too many registration attempts. Please try again later."
-  }
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many registration attempts from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const resetLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 5,
-  message: {
-    success: false,
-    message: "Too many password reset requests. Please try again later."
-  }
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { success: false, message: 'Too many password reset requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Throttle the chat endpoint to prevent API exhaustion
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many API requests from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 2. Maintainer's Limiters (Incoming Code)
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 15,
-  message: {
-    success: false,
-    error: "Too many chat requests. Please slow down.",
-  }
+  message: { success: false, error: "Too many chat requests. Please slow down." }
 });
 
-// Throttle the analyze/predict endpoint per client IP so a single client can't
-// flood the ML inference service with rapid bursts.
 const PREDICT_WINDOW_MS = Number(process.env.PREDICT_RATE_LIMIT_WINDOW_MS) || 60 * 1000;
 const PREDICT_MAX = Number(process.env.PREDICT_RATE_LIMIT_MAX) || 30;
 
@@ -49,23 +50,12 @@ const predictLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res, next, options) => {
     const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
-    // express-rate-limit sets Retry-After itself, but set it explicitly so the
-    // contract is guaranteed regardless of header-mode configuration.
-    res.setHeader("Retry-After", retryAfterSeconds);
-    res.status(options.statusCode).json({
+    res.status(429).json({
       success: false,
-      error: "Too many analyze requests. Please slow down and try again shortly.",
-      retryAfter: retryAfterSeconds,
+      error: "Too many predict requests. Please slow down.",
+      retryAfter: retryAfterSeconds
     });
-  },
+  }
 });
 
-module.exports = {
-  loginLimiter,
-  registerLimiter,
-  resetLimiter,
-  predictLimiter,
-  chatLimiter,
-  PREDICT_MAX,
-  PREDICT_WINDOW_MS,
-};
+module.exports = { loginLimiter, registerLimiter, resetLimiter, apiLimiter, chatLimiter, predictLimiter, PREDICT_MAX, PREDICT_WINDOW_MS };

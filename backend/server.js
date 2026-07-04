@@ -1,3 +1,4 @@
+const { checkCache, setCache } = require('./middleware/cacheMiddleware');
 const { formatError, errorHandler, errorCodes, classifyMlApiError } = require('./utils/errorHelper');
 require("dotenv").config();
 const dns = require("dns");
@@ -13,6 +14,9 @@ const compression = require('compression');
 const { v4: uuidv4 } = require('uuid');
 const helmet = require('helmet');
 const axios = require("axios");
+// Initialize background jobs
+require('./jobs/archivalCron');
+const { preventCacheStampede } = require('./middleware/cacheMiddleware');
 
 // ===== STARTUP TIMER =====
 const SERVER_START_TIME = Date.now();
@@ -41,6 +45,7 @@ const mongoose = require("mongoose");
 
 const History = require("./models/History");
 const Rule = require("./models/Rule");
+const User = require("./models/User");
 const { matchKeywordRule } = require("./utils/keywordRules");
 
 const multer = require("multer");
@@ -49,6 +54,18 @@ const upload = multer();
 const FormData = require("form-data");
 
 const app = express();
+
+
+// Trust the first proxy so express-rate-limit correctly identifies user IPs
+app.set('trust proxy', 1); 
+
+// Apply standard throttling to the heavy ML prediction route
+const { apiLimiter } = require('./middleware/rateLimiter');
+app.use('/predict', apiLimiter);
+
+// Trust the first proxy so express-rate-limit correctly identifies user IPs
+app.set('trust proxy', 1);
+
 
 const Sentry = require("@sentry/node");
 
@@ -261,11 +278,69 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// ---> NEW: Asynchronous Webhook Dispatcher (For Issue #430 & SSRF fix)
+const net = require('net');
+
+const isSafeWebhookUrl = (webhookUrl) => {
+  try {
+    const parsed = new URL(webhookUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost') return false;
+
+    if (net.isIP(host)) {
+      if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.') || host.startsWith('169.254.')) return false;
+      const parts = host.split('.');
+      if (parts.length === 4) {
+        const first = parseInt(parts[0], 10);
+        const second = parseInt(parts[1], 10);
+        if (first === 172 && second >= 16 && second <= 31) return false;
+        if (first === 0) return false;
+      }
+      if (host === '::1' || host.startsWith('fe80:') || host.startsWith('fc00:') || host.startsWith('fd00:')) return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+const dispatchWebhook = async (userId, payload) => {
+  try {
+    const user = await User.findById(userId);
+    if (user && user.webhookUrl) {
+      if (!isSafeWebhookUrl(user.webhookUrl)) {
+         console.warn(`[Webhook Blocked] SSRF protection prevented request to: ${user.webhookUrl}`);
+         return;
+      }
+
+      console.log(`[Webhook] Dispatching threat alert to: ${user.webhookUrl}`);
+      
+      // Fire and forget (Asynchronous execution via Axios) with 10s timeout
+      axios.post(user.webhookUrl, {
+        event: 'high_risk_threat_detected',
+        timestamp: new Date().toISOString(),
+        threat_details: payload
+      }, { timeout: 10000 }).catch(err => {
+        // Resilience: Catch external server errors so our app doesn't crash
+        console.error(`[Webhook Failed] Could not deliver to ${user.webhookUrl}:`, err.message);
+      });
+    }
+  } catch (err) {
+    console.error('[Webhook Error] Error fetching user for webhook:', err.message);
+  }
+};
+
 // Protected: only authenticated users can predict
+
+app.post('/predict', preventCacheStampede, protect, async (req, res) => {
+// ---> NEW: Added `checkCache` middleware here! <---
+// ---> NEW: Added `checkCache` middleware here! <---
 app.post("/predict", predictLimiter, protect, async (req, res) => {
   try {
     console.log("Reached /predict");
-    const { text, type, sender } = req.body;
+    const { text, type, sender, confidence_threshold } = req.body;
     console.log("Received:", text, type, sender);
 
     // Check 1: fields must exist
@@ -278,6 +353,10 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
       return res.status(400).json({ error: "Text and type must be strings." });
     }
 
+    if (sender !== undefined && typeof sender !== "string") {
+      return res.status(400).json({ error: "Sender must be a string." });
+    }
+
     // Check 3: must not be empty or only whitespace
     if (text.trim().length === 0) {
       return res
@@ -286,9 +365,7 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
     }
 
     // Check 4: validate type is one of the accepted values
-
     const allowedTypes = ["sms", "email", "url", "message"];
-
     if (!allowedTypes.includes(type.toLowerCase())) {
       return res.status(400).json({
         error: `Invalid type. Allowed values are: ${allowedTypes.join(", ")}.`,
@@ -298,8 +375,7 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
     // Check 5: validate text length
     if (text.trim().length > 5000) {
       return res.status(413).json({
-        error:
-          "Text payload exceeds maximum allowed length of 5000 characters.",
+        error: "Text payload exceeds maximum allowed length of 5000 characters.",
       });
     }
 
@@ -345,7 +421,7 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
         }
 
         console.log(`Rule match found (${rule.type}):`, checkPattern);
-        return res.json({
+        const ruleResult = {
           input: text,
           prediction: prediction,
           confidence: 1.0,
@@ -353,7 +429,9 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
           level_color: isSpam ? "red" : "green",
           level_emoji: isSpam ? "🔴" : "🟢",
           rule_applied: rule.type
-        });
+        };
+        
+        return res.json(ruleResult);
       }
     }
 
@@ -383,7 +461,7 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
       }
 
       console.log(`Keyword rule match found (${keywordMatch.type}):`, keywordMatch.pattern);
-      return res.json({
+      const kwResult = {
         input: text,
         prediction: prediction,
         confidence: 1.0,
@@ -391,41 +469,90 @@ app.post("/predict", predictLimiter, protect, async (req, res) => {
         level_color: isSpam ? "red" : "green",
         level_emoji: isSpam ? "🔴" : "🟢",
         rule_applied: keywordMatch.type,
-      });
+      };
+
+      return res.json(kwResult);
     }
 
     console.log("Calling Flask...");
 
+    // Check ML Cache globally before calling Flask
+    const cacheKey = `spam_cache:${require('crypto').createHash('sha256').update(text).digest('hex')}`;
+    const { redisClient } = require("./middleware/cacheMiddleware");
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        const cachedResult = await redisClient.get(cacheKey);
+        if (cachedResult) {
+          console.log('🚀 Cache Hit! Returning data from Redis.');
+          return res.status(200).json(JSON.parse(cachedResult));
+        }
+      } catch (cacheErr) {
+        console.error('Redis Get Cache Error:', cacheErr.message);
+      }
+    }
+
+    let apiUrl =
+      process.env.VITE_ML_API_URI ||
+      process.env.API ||
+      "http://localhost:5000/predict";
+    // Ensure URL doesn't end with double /predict
+    apiUrl = apiUrl.replace(/\/predict\/?$/, "").replace(/\/$/, "") + "/predict";
+
+    console.time("ML_API_CALL");
     const response = await axios.post(
-      process.env.API || "http://localhost:5000/predict",
+      apiUrl,
       {
         text: text.trim(),
         type: type.toLowerCase(),
+        confidence_threshold: confidence_threshold
       },
       {
-        headers: { "X-Forwarded-For": req.ip || req.connection.remoteAddress },
-        timeout: Number(process.env.ML_API_TIMEOUT_MS) || 15000,
+        headers: { 
+          "X-Forwarded-For": req.ip || req.connection.remoteAddress,
+          "X-Request-ID": req.requestId // Forwarding the correlation ID
+        },
+        timeout: Number(process.env.ML_API_TIMEOUT_MS) || 15000
       }
     );
+    console.timeEnd("ML_API_CALL");
     console.log("Flask responded:", response.data);
 
-    // Save history automatically (best-effort: a DB failure shouldn't break the prediction response)
+    // Save history automatically (best-effort)
     try {
       await History.create({
         user: req.user.id,
         query: text,
         prediction: response.data.prediction,
         type: type,
-        confidence: response.data.confidence,
+        confidence: response.data.confidence || response.data.probability,
       });
     } catch (historyError) {
-
       console.error(`[${req.requestId}] Failed to save history: ${historyError.message}`);
     }
 
-    res.json(response.data);
+      const finalResponse = response.data;
+      if (typeof finalResponse.confidence === "number") {
+        finalResponse.confidence = Math.round(finalResponse.confidence * 100) / 100;
+      }
+
+      setCache(cacheKey, finalResponse).catch(err => console.error("Cache Save Error:", err));
+
+      // ---> NEW: Trigger Webhook if threat is high risk
+      const predictionLabel = finalResponse.prediction ? finalResponse.prediction.toLowerCase() : '';
+      const confidenceScore = finalResponse.confidence || 0;
+      
+      if (['spam', 'malicious', 'smishing', 'phishing'].includes(predictionLabel) || confidenceScore > 0.90) {
+        dispatchWebhook(req.user.id, {
+          input_text: text,
+          type: type,
+          prediction: predictionLabel,
+          confidence: confidenceScore
+        });
+      }
+
+      return res.json(finalResponse);
   } catch (error) {
-Sentry.captureException(error, {
+    Sentry.captureException(error, {
       tags: {
         endpoint: '/predict',
         userId: req.user?.id || 'anonymous'
@@ -439,10 +566,8 @@ Sentry.captureException(error, {
 
     console.error(`[${req.requestId}]`, error.message);
 
-    // Distinguish ML API failures (timeout / unavailable / upstream 4xx vs 5xx)
-    // so the frontend can show specific messaging and a retry affordance.
     const { status, body } = classifyMlApiError(error);
-    res.status(status).json(body);
+    return res.status(status).json(body);
   }
 });
 
@@ -1222,28 +1347,72 @@ app.get('/api/stats', protect, async (req, res) => {
     }
 });
 
+
+
 // ========================================
-// GRACEFUL SHUTDOWN
+// GRACEFUL SHUTDOWN LOGIC
 // ========================================
 
+// 1. Keep track of active connections
+const connections = new Set();
+server.on('connection', (connection) => {
+  connections.add(connection);
+  connection.on('close', () => connections.delete(connection));
+});
+
+// 2. The Graceful Shutdown Function
 const gracefulShutdown = async (signal) => {
-  console.log(`\nReceived ${signal}. Closing server...`);
-  server.close(async () => {
-    console.log('HTTP server closed.');
-    try {
-      await mongoose.disconnect();
-      console.log('MongoDB connection closed.');
-    } catch (err) {
-      console.error('Error closing MongoDB connection:', err);
+  console.log(`\n🛑 [${signal}] signal received: closing HTTP server...`);
+  
+  let forceClosed = false;
+
+  // 15-Second Fallback Timeout
+  const timeoutId = setTimeout(async () => {
+    forceClosed = true;
+    console.error('⚠️ [Timeout] Could not close connections in time, forcefully shutting down!');
+    
+    // Destroy all active connections forcefully
+    for (const connection of connections) {
+      connection.destroy();
     }
-    console.log('Shutdown complete. Exiting process.');
-    process.exit(0);
+    
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.disconnect();
+    }
+    process.exit(1);
+  }, 15000); // 15 seconds grace period
+
+  // Close server to reject NEW requests
+  server.close(async () => {
+    if (forceClosed) return; 
+    
+    clearTimeout(timeoutId);
+    console.log('✅ HTTP server closed. All active requests completed normally.');
+    
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.disconnect();
+        console.log('✅ MongoDB disconnected successfully.');
+      }
+      process.exit(0);
+    } catch (err) {
+      console.error('❌ Error during MongoDB disconnection:', err);
+      process.exit(1);
+    }
   });
+
+  // Safely close idle connections immediately to speed up shutdown
+  if (server.closeIdleConnections) {
+    server.closeIdleConnections();
+  }
 };
 
+// 3. Assign the listeners
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+module.exports = { app, applyRulesToEmails };
 
+process.on('SIGINT', () => process.exit(0));
 // Protected: get the current IMAP connection status for the logged-in user
 app.get("/imap/status", protect, async (req, res) => {
   try {
@@ -1417,6 +1586,17 @@ app.get('/api/history/search',protect, async(req,res) => {
         });
     }
 });
+// ========================================
+// START SERVER
+// ========================================
+
+// const PORT = config.port;
+// const server = app.listen(PORT, () => {
+//   const totalTime = Date.now() - SERVER_START_TIME;
+//   displayBanner();
+//   console.log(`⏱️ Total startup time: ${totalTime}ms`);
+// });
+
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
