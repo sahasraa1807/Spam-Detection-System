@@ -1266,6 +1266,44 @@ app.get("/imap/status", protect, async (req, res) => {
   }
 });
 
+//Get activity data for Heatmap
+app.get('/api/activity/:userId', protect, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { year, month } = req.query;
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const activities = await History.aggregate([
+      {
+        $match: {
+          user: mongoose.Types.ObjectId(userId),
+          createdAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            day: { $dayOfMonth: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = {};
+   activities.forEach(item => {
+      result[item._id] = item.count;
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching activity data:", error);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
 // Protected: update the scheduled scan interval for the connected IMAP inbox
 app.put("/imap/schedule", protect, async (req, res) => {
   try {
