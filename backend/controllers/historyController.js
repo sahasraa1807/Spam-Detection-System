@@ -20,7 +20,7 @@ const getSafeUserId = (req) => sanitizeInput(req.user.id);
 const getPaginationParams = (query, defaultLimit = 10, maxLimit = 100) => {
   const page = Math.max(1, parseInt(query.page) || 1);
   const limit = parseInt(query.limit) || defaultLimit;
-  const safeLimit = Math.min(limit, maxLimit);
+  const safeLimit = Math.max(1, Math.min(limit, maxLimit));
   const skip = (page - 1) * safeLimit;
 
   return { page, safeLimit, skip };
