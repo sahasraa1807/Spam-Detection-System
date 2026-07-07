@@ -1077,8 +1077,9 @@ app.post('/api/despamify', protect, async (req, res) => {
     
     const prefix = tonePrefixes[tone] || '';
     
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     for (const [key, value] of Object.entries(replacements)) {
-      deSpammed = deSpammed.replace(new RegExp(key, 'gi'), value);
+      deSpammed = deSpammed.replace(new RegExp(escapeRegex(key), 'gi'), value);
     }
     
     // Clean up
